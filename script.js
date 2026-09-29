@@ -1,0 +1,746 @@
+const LS = {
+  cart: "ao_cart_v1",
+};
+
+const DEFAULT_SETTINGS = {
+  wppNumber: "5555999999999",
+  wppMessage: "Olá! Quero comprar na Almada Outlet:",
+};
+
+const moneyBR = (v) => (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+function loadJSON(key, fallback){ try{ const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch { return fallback; } }
+function saveJSON(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+function escapeHTML(s=""){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+function clamp(v, min, max){ return Math.min(max, Math.max(min, v)); }
+
+// ---------- API ----------
+async function apiGet(path){
+  const res = await fetch(path, { credentials: "include" });
+  if (!res.ok) throw new Error(`Erro ao carregar ${path}`);
+  return res.json();
+}
+async function apiSend(path, method, body){
+  const opts = { method, credentials: "include", headers: {} };
+  if (body !== undefined){
+    opts.headers["Content-Type"] = "application/json";
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(path, opts);
+  let data = {};
+  try { data = await res.json(); } catch {}
+  if (!res.ok) throw new Error(data.error || `Erro (${res.status})`);
+  return data;
+}
+
+const svgFallback = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(`
+<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600'>
+  <rect width='100%' height='100%' fill='#f3ece0'/>
+  <text x='50%' y='50%' fill='#6b6257' font-family='Inter, Arial' font-size='28' text-anchor='middle'>Sem imagem</text>
+</svg>`);
+
+// ---------- Simple brand-styled placeholder art (no external images needed) ----------
+const CATEGORY_ICONS = {
+  "Tênis": `<path d="M60,300 L60,230 Q90,170 150,160 L230,150 Q270,145 300,170 L420,220 Q470,235 480,270 L480,300 Q480,310 470,310 L70,310 Q60,310 60,300 Z" fill="none" stroke="#15130f" stroke-width="10" stroke-linejoin="round"/><path d="M150,160 L150,210 M230,150 L245,205 M300,170 L330,215" stroke="#15130f" stroke-width="8" fill="none" stroke-linecap="round"/><line x1="60" y1="280" x2="480" y2="280" stroke="#17b8ae" stroke-width="10"/>`,
+  "Camisetas": `<path d="M190,120 L230,90 Q270,110 310,90 L350,120 L410,160 L370,210 L340,190 L340,400 L200,400 L200,190 L170,210 L130,160 Z" fill="none" stroke="#15130f" stroke-width="10" stroke-linejoin="round"/><path d="M230,90 Q270,140 310,90" fill="none" stroke="#17b8ae" stroke-width="8"/>`,
+  "Calças": `<path d="M190,90 L350,90 L360,180 L400,400 L340,400 L290,220 L260,220 L230,400 L170,400 L190,180 Z" fill="none" stroke="#15130f" stroke-width="10" stroke-linejoin="round"/><line x1="190" y1="140" x2="350" y2="140" stroke="#17b8ae" stroke-width="8"/>`,
+  "Bermudas": `<path d="M190,90 L350,90 L360,180 L340,300 L300,300 L285,200 L265,200 L250,300 L210,300 L190,180 Z" fill="none" stroke="#15130f" stroke-width="10" stroke-linejoin="round"/><line x1="190" y1="140" x2="350" y2="140" stroke="#17b8ae" stroke-width="8"/>`,
+  "Cuecas": `<path d="M180,140 L380,140 Q380,220 340,260 Q300,300 280,340 Q260,300 220,260 Q180,220 180,140 Z" fill="none" stroke="#15130f" stroke-width="10" stroke-linejoin="round"/><line x1="180" y1="170" x2="380" y2="170" stroke="#17b8ae" stroke-width="8"/>`,
+  "Moletom": `<path d="M280,80 Q330,80 340,130 L400,150 L420,220 L390,235 L370,190 L370,400 L190,400 L190,190 L170,235 L140,220 L160,150 L220,130 Q230,80 280,80 Z" fill="none" stroke="#15130f" stroke-width="10" stroke-linejoin="round"/><rect x="240" y="300" width="80" height="50" rx="10" fill="none" stroke="#17b8ae" stroke-width="8"/>`,
+  "Óculos Oakley": `<circle cx="190" cy="230" r="70" fill="none" stroke="#15130f" stroke-width="10"/><circle cx="370" cy="230" r="70" fill="none" stroke="#15130f" stroke-width="10"/><line x1="260" y1="220" x2="300" y2="220" stroke="#15130f" stroke-width="10"/><line x1="120" y1="215" x2="60" y2="190" stroke="#15130f" stroke-width="10" stroke-linecap="round"/><line x1="440" y1="215" x2="500" y2="190" stroke="#15130f" stroke-width="10" stroke-linecap="round"/><circle cx="190" cy="230" r="70" fill="#17b8ae" opacity=".12"/><circle cx="370" cy="230" r="70" fill="#17b8ae" opacity=".12"/>`,
+};
+
+function placeholderImage(category){
+  const icon = CATEGORY_ICONS[category] || `<circle cx="280" cy="230" r="90" fill="none" stroke="#15130f" stroke-width="10"/>`;
+  const label = escapeHTML(category || "Almada Outlet");
+  const svg = `
+<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 560 480'>
+  <rect width='560' height='480' fill='#f3ece0'/>
+  <circle cx='280' cy='230' r='150' fill='#ffffff'/>
+  <g transform="translate(0,-10)">${icon}</g>
+  <text x='280' y='430' fill='#15130f' font-family='Georgia, serif' font-size='30' font-weight='700' text-anchor='middle' letter-spacing='2'>${label.toUpperCase()}</text>
+  <text x='280' y='458' fill='#6b6257' font-family='Inter, Arial' font-size='16' text-anchor='middle'>Almada Outlet</text>
+</svg>`;
+  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+}
+
+// State
+let products = [];
+let cart = loadJSON(LS.cart, []);
+let settings = { ...DEFAULT_SETTINGS };
+let isAdmin = false;
+let priceFilter = { min: null, max: null };
+
+// DOM
+const yearEl = document.getElementById("year");
+yearEl.textContent = new Date().getFullYear();
+
+const navCats = document.getElementById("navCats");
+const productsGrid = document.getElementById("productsGrid");
+const searchInput = document.getElementById("searchInput");
+const searchBtn = document.getElementById("searchBtn");
+const categorySelect = document.getElementById("categorySelect");
+const sortSelect = document.getElementById("sortSelect");
+const minPrice = document.getElementById("minPrice");
+const maxPrice = document.getElementById("maxPrice");
+const applyPriceBtn = document.getElementById("applyPriceBtn");
+const clearFiltersBtn = document.getElementById("clearFiltersBtn");
+
+const statProducts = document.getElementById("statProducts");
+const statShown = document.getElementById("statShown");
+
+const cartDrawer = document.getElementById("cartDrawer");
+const cartOverlay = document.getElementById("cartOverlay");
+const openCartBtn = document.getElementById("openCartBtn");
+const openCartBtn2 = document.getElementById("openCartBtn2");
+const openCartBtnHero = document.getElementById("openCartBtnHero");
+const closeCartBtn = document.getElementById("closeCartBtn");
+const cartCount = document.getElementById("cartCount");
+const cartItems = document.getElementById("cartItems");
+const cartSubtotal = document.getElementById("cartSubtotal");
+const cartMiniInfo = document.getElementById("cartMiniInfo");
+const cartNote = document.getElementById("cartNote");
+const clearCartBtn = document.getElementById("clearCartBtn");
+const checkoutWppBtn = document.getElementById("checkoutWppBtn");
+
+const footerWpp = document.getElementById("footerWpp");
+const ctaWppLink = document.getElementById("ctaWppLink");
+const headerWppLink = document.getElementById("headerWppLink");
+
+const adminModal = document.getElementById("adminModal");
+const adminOverlay = document.getElementById("adminOverlay");
+const closeAdminBtn = document.getElementById("closeAdminBtn");
+const openAdminHintBtn = document.getElementById("openAdminHintBtn");
+
+const tabLogin = document.getElementById("tabLogin");
+const tabCatalog = document.getElementById("tabCatalog");
+const tabSettings = document.getElementById("tabSettings");
+const panelLogin = document.getElementById("panelLogin");
+const panelCatalog = document.getElementById("panelCatalog");
+const panelSettings = document.getElementById("panelSettings");
+
+const adminUser = document.getElementById("adminUser");
+const adminPass = document.getElementById("adminPass");
+const adminLoginBtn = document.getElementById("adminLoginBtn");
+const adminLogoutBtn = document.getElementById("adminLogoutBtn");
+
+const productForm = document.getElementById("productForm");
+const pId = document.getElementById("pId");
+const pName = document.getElementById("pName");
+const pCategory = document.getElementById("pCategory");
+const pPrice = document.getElementById("pPrice");
+const pFeatured = document.getElementById("pFeatured");
+const pDesc = document.getElementById("pDesc");
+const pImage = document.getElementById("pImage");
+const pImageFile = document.getElementById("pImageFile");
+const clearFormBtn = document.getElementById("clearFormBtn");
+const pCategoryList = document.getElementById("pCategoryList");
+const pImagePreviewWrap = document.getElementById("pImagePreviewWrap");
+const pImagePreview = document.getElementById("pImagePreview");
+const pZoom = document.getElementById("pZoom");
+const pZoomVal = document.getElementById("pZoomVal");
+const pImageResetBtn = document.getElementById("pImageResetBtn");
+const adminProductsList = document.getElementById("adminProductsList");
+
+const storeWpp = document.getElementById("storeWpp");
+const storeWppMsg = document.getElementById("storeWppMsg");
+const saveSettingsBtn = document.getElementById("saveSettingsBtn");
+const newAdminUser = document.getElementById("newAdminUser");
+const newAdminPass = document.getElementById("newAdminPass");
+const saveCredsBtn = document.getElementById("saveCredsBtn");
+
+// ---------- Cart helpers ----------
+function cartTotalQty(){ return cart.reduce((a,i)=>a+i.qty,0); }
+function getQtyInCart(productId){
+  return cart.find(i=>i.productId===productId)?.qty ?? 0;
+}
+
+// ---------- Categories ----------
+function categories(){
+  return Array.from(new Set(products.map(p => (p.category||"").trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+}
+
+function renderCategoryUI(){
+  const cats = categories();
+  const current = categorySelect.value || "all";
+  categorySelect.innerHTML = `<option value="all">Todas</option>` + cats.map(c=>`<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`).join("");
+  if ([...categorySelect.options].some(o=>o.value===current)) categorySelect.value = current;
+
+  navCats.innerHTML = "";
+  const mkBtn = (label, val) => {
+    const b = document.createElement("button");
+    b.className = "catBtn" + ((categorySelect.value===val) ? " isActive" : "");
+    b.textContent = label;
+    b.addEventListener("click", ()=>{ categorySelect.value = val; renderAll(); });
+    return b;
+  };
+  navCats.appendChild(mkBtn("Todos", "all"));
+  cats.forEach(c => navCats.appendChild(mkBtn(c, c)));
+
+  pCategoryList.innerHTML = cats.map(c=>`<option value="${escapeHTML(c)}"></option>`).join("");
+}
+
+// ---------- Filtering / sorting ----------
+function filteredProducts(){
+  const q = (searchInput.value || "").trim().toLowerCase();
+  const cat = categorySelect.value || "all";
+  const sort = sortSelect.value || "featured";
+
+  let list = [...products];
+  if (cat !== "all") list = list.filter(p => (p.category||"").trim() === cat);
+  if (q) list = list.filter(p => (`${p.name} ${p.category} ${p.desc}`).toLowerCase().includes(q));
+
+  const min = priceFilter.min;
+  const max = priceFilter.max;
+  if (min != null && !Number.isNaN(min)) list = list.filter(p => (p.price||0) >= min);
+  if (max != null && !Number.isNaN(max)) list = list.filter(p => (p.price||0) <= max);
+
+  if (sort === "featured"){
+    list.sort((a,b)=> (b.featured===true) - (a.featured===true) || a.name.localeCompare(b.name));
+  } else if (sort === "priceAsc"){
+    list.sort((a,b)=>(a.price||0)-(b.price||0));
+  } else if (sort === "priceDesc"){
+    list.sort((a,b)=>(b.price||0)-(a.price||0));
+  } else if (sort === "nameAsc"){
+    list.sort((a,b)=>a.name.localeCompare(b.name));
+  }
+
+  return list;
+}
+
+// ---------- Render products ----------
+let io;
+function ensureObserver(){
+  if (io) return;
+  io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      if (e.isIntersecting) e.target.classList.add("isIn");
+    });
+  }, { threshold: 0.06 });
+}
+
+function renderProducts(){
+  ensureObserver();
+  const list = filteredProducts();
+  statProducts.textContent = String(products.length);
+  statShown.textContent = String(list.length);
+
+  productsGrid.innerHTML = "";
+  if (!list.length){
+    productsGrid.innerHTML = `<div class="panel" style="grid-column:1/-1">Nenhum produto encontrado.</div>`;
+    return;
+  }
+
+  list.forEach(p=>{
+    const price = p.price ?? 0;
+    const zoom = p.imageZoom || 100;
+    const posX = p.imagePos?.x ?? 50;
+    const posY = p.imagePos?.y ?? 50;
+
+    const el = document.createElement("article");
+    el.className = "pCard";
+    el.innerHTML = `
+      <div class="pImgWrap">
+        <img class="pImg" src="${p.image || placeholderImage(p.category)}" alt="${escapeHTML(p.name)}" style="object-position:${posX}% ${posY}%; transform:scale(${zoom/100})" />
+      </div>
+      <div class="pBody">
+        <div class="pTop">
+          <div>
+            <div class="pName">${escapeHTML(p.name)}</div>
+            <div class="pCat">${escapeHTML(p.category||"")}</div>
+          </div>
+          <div class="priceStack">
+            <div class="pPrice">${moneyBR(price)}</div>
+            ${p.featured ? `<div class="pTag">Destaque</div>` : ``}
+          </div>
+        </div>
+
+        <div class="pDesc">${escapeHTML(p.desc||"")}</div>
+
+        <div class="row">
+          <button class="btn btn--primary btn--full" data-add="${p.id}">Adicionar</button>
+          ${isAdmin ? `<button class="btn btn--ghost" data-edit="${p.id}">Editar</button>` : ``}
+        </div>
+      </div>
+    `;
+
+    const img = el.querySelector("img");
+    img.onerror = () => img.src = svgFallback;
+
+    el.querySelector("[data-add]").addEventListener("click", ()=>addToCart(p.id));
+    const editBtn = el.querySelector("[data-edit]");
+    if (editBtn) editBtn.addEventListener("click", ()=>{ openAdmin(); loadToForm(p.id); });
+
+    productsGrid.appendChild(el);
+    io.observe(el);
+  });
+}
+
+// ---------- Cart ----------
+function cartSubtotalValue(){
+  return cart.reduce((sum, it)=>{
+    const p = products.find(x=>x.id===it.productId);
+    if (!p) return sum;
+    return sum + (p.price||0) * it.qty;
+  },0);
+}
+
+function renderCart(){
+  cartCount.textContent = String(cartTotalQty());
+  cartSubtotal.textContent = moneyBR(cartSubtotalValue());
+  cartMiniInfo.textContent = cart.length ? `${cartTotalQty()} item(ns)` : `Carrinho vazio`;
+
+  cartItems.innerHTML = "";
+  if (!cart.length){
+    cartItems.innerHTML = `<div class="panel">Seu carrinho está vazio.</div>`;
+    return;
+  }
+
+  cart.forEach(it=>{
+    const p = products.find(x=>x.id===it.productId);
+    if (!p) return;
+
+    const row = document.createElement("div");
+    row.className = "cartRow";
+    row.innerHTML = `
+      <img src="${p.image || placeholderImage(p.category)}" alt="${escapeHTML(p.name)}" />
+      <div>
+        <div class="cartName">${escapeHTML(p.name)}</div>
+        <div class="muted">Unit: <strong>${moneyBR(p.price||0)}</strong></div>
+        <button class="btn btn--ghost" style="padding:8px 10px" data-remove="${p.id}">Remover</button>
+      </div>
+      <div class="qty">
+        <button data-dec="${p.id}">−</button>
+        <strong>${it.qty}</strong>
+        <button data-inc="${p.id}">+</button>
+      </div>
+    `;
+
+    row.querySelector("img").onerror = ()=> row.querySelector("img").src = svgFallback;
+    row.querySelector("[data-inc]").addEventListener("click", ()=>incQty(p.id));
+    row.querySelector("[data-dec]").addEventListener("click", ()=>decQty(p.id));
+    row.querySelector("[data-remove]").addEventListener("click", ()=>removeFromCart(p.id));
+    cartItems.appendChild(row);
+  });
+}
+
+function addToCart(productId){
+  const found = cart.find(i=>i.productId===productId);
+  if (found) found.qty += 1;
+  else cart.push({productId, qty:1});
+  saveJSON(LS.cart, cart);
+  renderProducts();
+  renderCart();
+  openCart();
+}
+function incQty(productId){
+  const it = cart.find(i=>i.productId===productId);
+  if (!it) return;
+  it.qty += 1;
+  saveJSON(LS.cart, cart);
+  renderProducts();
+  renderCart();
+}
+function decQty(productId){
+  const it = cart.find(i=>i.productId===productId);
+  if (!it) return;
+  it.qty = Math.max(1, it.qty-1);
+  saveJSON(LS.cart, cart);
+  renderProducts();
+  renderCart();
+}
+function removeFromCart(productId){
+  cart = cart.filter(i=>i.productId!==productId);
+  saveJSON(LS.cart, cart);
+  renderProducts();
+  renderCart();
+}
+
+// ---------- WhatsApp ----------
+function wppBaseLink(customText){
+  const number = (settings.wppNumber || DEFAULT_SETTINGS.wppNumber).replace(/\D/g,"");
+  const text = encodeURIComponent(customText || settings.wppMessage || DEFAULT_SETTINGS.wppMessage);
+  return `https://wa.me/${number}?text=${text}`;
+}
+function renderWppLinks(){
+  headerWppLink.href = wppBaseLink();
+  footerWpp.href = wppBaseLink();
+  ctaWppLink.href = wppBaseLink();
+}
+function buildCheckoutMessage(){
+  const lines = [];
+  lines.push(settings.wppMessage || DEFAULT_SETTINGS.wppMessage);
+  lines.push("");
+
+  cart.forEach(it=>{
+    const p = products.find(x=>x.id===it.productId);
+    if (!p) return;
+    const lineTotal = (p.price||0) * it.qty;
+    lines.push(`• ${it.qty}x ${p.name} — Unit ${moneyBR(p.price||0)} (linha: ${moneyBR(lineTotal)})`);
+  });
+
+  lines.push("");
+  lines.push(`Subtotal: ${moneyBR(cartSubtotalValue())}`);
+
+  const note = (cartNote.value||"").trim();
+  if (note){
+    lines.push("");
+    lines.push(`Obs: ${note}`);
+  }
+  return lines.join("\n");
+}
+
+// ---------- Drawer / Modal ----------
+function openCart(){ cartDrawer.classList.add("isOpen"); cartDrawer.setAttribute("aria-hidden","false"); }
+function closeCart(){ cartDrawer.classList.remove("isOpen"); cartDrawer.setAttribute("aria-hidden","true"); }
+function openAdmin(){ adminModal.classList.add("isOpen"); adminModal.setAttribute("aria-hidden","false"); syncAdminUI(); }
+function closeAdmin(){ adminModal.classList.remove("isOpen"); adminModal.setAttribute("aria-hidden","true"); }
+
+openCartBtn.addEventListener("click", openCart);
+openCartBtn2.addEventListener("click", openCart);
+openCartBtnHero.addEventListener("click", openCart);
+closeCartBtn.addEventListener("click", closeCart);
+cartOverlay.addEventListener("click", closeCart);
+
+closeAdminBtn.addEventListener("click", closeAdmin);
+adminOverlay.addEventListener("click", closeAdmin);
+openAdminHintBtn.addEventListener("click", openAdmin);
+
+document.addEventListener("keydown", (e)=>{
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase()==="a"){ e.preventDefault(); openAdmin(); }
+  if (e.key === "Escape"){ closeCart(); closeAdmin(); }
+});
+
+// ---------- Filters ----------
+function renderAll(){
+  renderCategoryUI();
+  renderProducts();
+  renderCart();
+  renderWppLinks();
+  renderAdminList();
+  syncAdminUI();
+}
+searchBtn.addEventListener("click", renderProducts);
+searchInput.addEventListener("input", ()=>{ clearTimeout(window.__t); window.__t=setTimeout(renderProducts, 120); });
+categorySelect.addEventListener("change", renderAll);
+sortSelect.addEventListener("change", renderProducts);
+
+applyPriceBtn.addEventListener("click", ()=>{
+  const min = minPrice.value ? Number(minPrice.value) : null;
+  const max = maxPrice.value ? Number(maxPrice.value) : null;
+  priceFilter = { min, max };
+  renderProducts();
+});
+clearFiltersBtn.addEventListener("click", ()=>{
+  searchInput.value = "";
+  categorySelect.value = "all";
+  sortSelect.value = "featured";
+  minPrice.value = "";
+  maxPrice.value = "";
+  priceFilter = { min:null, max:null };
+  renderAll();
+});
+
+// Checkout / clear
+checkoutWppBtn.addEventListener("click", ()=>{
+  if (!cart.length) return alert("Seu carrinho está vazio.");
+  window.open(wppBaseLink(buildCheckoutMessage()), "_blank", "noopener");
+});
+clearCartBtn.addEventListener("click", ()=>{
+  if (!confirm("Limpar carrinho?")) return;
+  cart = [];
+  saveJSON(LS.cart, cart);
+  renderProducts();
+  renderCart();
+});
+
+// ---------- Admin ----------
+function setTab(tab){
+  [tabLogin, tabCatalog, tabSettings].forEach(t=>t.classList.remove("tab--active"));
+  [panelLogin, panelCatalog, panelSettings].forEach(p=>p.classList.remove("tabPanel--active"));
+  if (tab==="login"){ tabLogin.classList.add("tab--active"); panelLogin.classList.add("tabPanel--active"); }
+  if (tab==="catalog"){ tabCatalog.classList.add("tab--active"); panelCatalog.classList.add("tabPanel--active"); }
+  if (tab==="settings"){ tabSettings.classList.add("tab--active"); panelSettings.classList.add("tabPanel--active"); }
+}
+document.querySelectorAll(".tab").forEach(b=>{
+  b.addEventListener("click", ()=>{ if (!b.disabled) setTab(b.dataset.tab); });
+});
+
+function syncAdminUI(){
+  tabCatalog.disabled = !isAdmin;
+  tabSettings.disabled = !isAdmin;
+  adminLogoutBtn.disabled = !isAdmin;
+  if (isAdmin){
+    setTab("catalog");
+    storeWpp.value = settings.wppNumber || "";
+    storeWppMsg.value = settings.wppMessage || "";
+    newAdminUser.value = "";
+    newAdminPass.value = "";
+  } else setTab("login");
+}
+
+adminLoginBtn.addEventListener("click", async ()=>{
+  const u = (adminUser.value||"").trim();
+  const p = (adminPass.value||"").trim();
+  try {
+    await apiSend("/api/auth/login", "POST", { username: u, password: p });
+    isAdmin = true;
+    adminUser.value = ""; adminPass.value = "";
+    syncAdminUI(); renderAdminList(); renderProducts();
+  } catch (err) {
+    alert(err.message || "Usuário ou senha inválidos.");
+  }
+});
+adminLogoutBtn.addEventListener("click", async ()=>{
+  try { await apiSend("/api/auth/logout", "POST"); } catch {}
+  isAdmin = false;
+  syncAdminUI(); renderProducts();
+});
+
+// ---------- Product image editor (zoom / position) ----------
+const DEFAULT_IMG_EDIT = { zoom: 100, x: 50, y: 50 };
+let imgEdit = { ...DEFAULT_IMG_EDIT };
+
+function applyImgEditPreview(){
+  pImagePreview.style.objectPosition = `${imgEdit.x}% ${imgEdit.y}%`;
+  pImagePreview.style.transform = `scale(${imgEdit.zoom/100})`;
+  pZoom.value = String(imgEdit.zoom);
+  pZoomVal.textContent = `${imgEdit.zoom}%`;
+}
+
+async function refreshImagePreviewSrc(){
+  let src = "";
+  if (pImageFile.files && pImageFile.files[0]) src = await fileToDataURL(pImageFile.files[0]);
+  else src = (pImage.value||"").trim();
+  pImagePreview.src = src || placeholderImage(pCategory.value.trim());
+  applyImgEditPreview();
+}
+pImage.addEventListener("input", refreshImagePreviewSrc);
+pImageFile.addEventListener("change", refreshImagePreviewSrc);
+
+pZoom.addEventListener("input", ()=>{
+  imgEdit.zoom = Number(pZoom.value);
+  applyImgEditPreview();
+});
+
+pImageResetBtn.addEventListener("click", ()=>{
+  imgEdit = { ...DEFAULT_IMG_EDIT };
+  applyImgEditPreview();
+});
+
+let dragState = null;
+pImagePreviewWrap.addEventListener("pointerdown", (e)=>{
+  dragState = { startX: e.clientX, startY: e.clientY, origX: imgEdit.x, origY: imgEdit.y };
+  pImagePreviewWrap.setPointerCapture(e.pointerId);
+});
+pImagePreviewWrap.addEventListener("pointermove", (e)=>{
+  if (!dragState) return;
+  const rect = pImagePreviewWrap.getBoundingClientRect();
+  const dx = (e.clientX - dragState.startX) / rect.width * 100;
+  const dy = (e.clientY - dragState.startY) / rect.height * 100;
+  imgEdit.x = clamp(dragState.origX - dx, 0, 100);
+  imgEdit.y = clamp(dragState.origY - dy, 0, 100);
+  applyImgEditPreview();
+});
+["pointerup","pointercancel","pointerleave"].forEach(ev=>{
+  pImagePreviewWrap.addEventListener(ev, ()=>{ dragState = null; });
+});
+
+function clearForm(){
+  pId.value = "";
+  pName.value = "";
+  pCategory.value = "";
+  pPrice.value = "";
+  pFeatured.value = "true";
+  pDesc.value = "";
+  pImage.value = "";
+  pImageFile.value = "";
+  imgEdit = { ...DEFAULT_IMG_EDIT };
+  refreshImagePreviewSrc();
+}
+clearFormBtn.addEventListener("click", clearForm);
+
+async function fileToDataURL(file){
+  return new Promise((resolve, reject)=>{
+    const r = new FileReader();
+    r.onload = ()=>resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+productForm.addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  if (!isAdmin) return alert("Faça login.");
+  let img = (pImage.value||"").trim();
+  if (pImageFile.files && pImageFile.files[0]) img = await fileToDataURL(pImageFile.files[0]);
+
+  const category = pCategory.value.trim();
+  const name = pName.value.trim();
+  const id = pId.value;
+
+  const payload = {
+    name,
+    category,
+    price: Number(pPrice.value),
+    featured: pFeatured.value === "true",
+    desc: pDesc.value.trim(),
+    image: img || null,
+    imageZoom: imgEdit.zoom,
+    imagePos: { x: imgEdit.x, y: imgEdit.y },
+  };
+
+  try {
+    if (id) await apiSend(`/api/products/${id}`, "PUT", payload);
+    else await apiSend("/api/products", "POST", payload);
+    products = await apiGet("/api/products");
+    clearForm();
+    renderAll();
+    alert("Produto salvo.");
+  } catch (err) {
+    alert(err.message || "Não foi possível salvar o produto.");
+  }
+});
+
+function renderAdminList(){
+  adminProductsList.innerHTML = "";
+  const list = [...products].sort((a,b)=>a.name.localeCompare(b.name));
+  list.forEach(p=>{
+    const el = document.createElement("div");
+    el.className = "adminItem";
+    el.innerHTML = `
+      <img src="${p.image || placeholderImage(p.category)}" alt="${escapeHTML(p.name)}" />
+      <div>
+        <div style="font-weight:800">${escapeHTML(p.name)}</div>
+        <div class="muted">${escapeHTML(p.category||"")} • ${moneyBR(p.price||0)} ${p.featured ? "• Destaque" : ""}</div>
+      </div>
+      <div class="row" style="justify-content:flex-end">
+        <button class="btn btn--ghost" data-edit="${p.id}">Editar</button>
+        <button class="btn btn--ghost" style="border-color:#fecaca;color:#991b1b" data-del="${p.id}">Excluir</button>
+      </div>
+    `;
+    el.querySelector("img").onerror = ()=> el.querySelector("img").src = svgFallback;
+    el.querySelector("[data-edit]").addEventListener("click", ()=>loadToForm(p.id));
+    el.querySelector("[data-del]").addEventListener("click", ()=>delProduct(p.id));
+    adminProductsList.appendChild(el);
+  });
+}
+
+function loadToForm(id){
+  const p = products.find(x=>x.id===id);
+  if (!p) return;
+  pId.value = p.id;
+  pName.value = p.name || "";
+  pCategory.value = p.category || "";
+  pPrice.value = String(p.price ?? "");
+  pFeatured.value = p.featured ? "true" : "false";
+  pDesc.value = p.desc || "";
+  pImage.value = (p.image && !String(p.image).startsWith("data:")) ? p.image : "";
+  pImageFile.value = "";
+  imgEdit = { zoom: p.imageZoom || DEFAULT_IMG_EDIT.zoom, x: p.imagePos?.x ?? DEFAULT_IMG_EDIT.x, y: p.imagePos?.y ?? DEFAULT_IMG_EDIT.y };
+  pImagePreview.src = p.image || placeholderImage(p.category);
+  applyImgEditPreview();
+  setTab("catalog");
+}
+
+async function delProduct(id){
+  if (!confirm("Excluir este produto?")) return;
+  try {
+    await apiSend(`/api/products/${id}`, "DELETE");
+    cart = cart.filter(i=>i.productId!==id);
+    saveJSON(LS.cart, cart);
+    products = await apiGet("/api/products");
+    renderAll();
+  } catch (err) {
+    alert(err.message || "Não foi possível excluir o produto.");
+  }
+}
+
+// Settings
+saveSettingsBtn.addEventListener("click", async ()=>{
+  if (!isAdmin) return alert("Faça login.");
+  try {
+    settings = await apiSend("/api/settings", "PUT", {
+      wppNumber: (storeWpp.value||"").trim(),
+      wppMessage: (storeWppMsg.value||"").trim(),
+    });
+    renderWppLinks();
+    renderCart();
+    alert("Configurações salvas.");
+  } catch (err) {
+    alert(err.message || "Não foi possível salvar as configurações.");
+  }
+});
+
+saveCredsBtn.addEventListener("click", async ()=>{
+  if (!isAdmin) return alert("Faça login.");
+  const u = (newAdminUser.value||"").trim();
+  const p = (newAdminPass.value||"").trim();
+  if (!u && !p) return alert("Preencha usuário e/ou senha novos.");
+  try {
+    await apiSend("/api/auth/credentials", "PUT", { username: u || undefined, password: p || undefined });
+    newAdminUser.value = ""; newAdminPass.value = "";
+    alert("Credenciais atualizadas.");
+  } catch (err) {
+    alert(err.message || "Não foi possível atualizar as credenciais.");
+  }
+});
+
+// ---------- Particles canvas ----------
+function initParticles(){
+  const canvas = document.getElementById("particlesCanvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  let w, h, dpr;
+  function resize(){
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = canvas.width = Math.floor(innerWidth * dpr);
+    h = canvas.height = Math.floor(innerHeight * dpr);
+    canvas.style.width = innerWidth + "px";
+    canvas.style.height = innerHeight + "px";
+  }
+  resize();
+  addEventListener("resize", resize);
+
+  const N = Math.min(90, Math.floor(innerWidth / 14));
+  const pts = Array.from({length:N}, ()=>({
+    x: Math.random()*w,
+    y: Math.random()*h,
+    vx: (Math.random()-.5) * 0.35 * dpr,
+    vy: (Math.random()-.5) * 0.35 * dpr,
+    r: (Math.random()*1.6 + 0.6) * dpr,
+  }));
+
+  function tick(){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = "rgba(23,184,174,.55)";
+    for (const p of pts){
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < -20 || p.x > w+20) p.vx *= -1;
+      if (p.y < -20 || p.y > h+20) p.vy *= -1;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fill();
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+// Init
+async function init(){
+  initParticles();
+  try {
+    const [productsData, settingsData, meData] = await Promise.all([
+      apiGet("/api/products"),
+      apiGet("/api/settings"),
+      apiGet("/api/auth/me"),
+    ]);
+    products = productsData;
+    settings = settingsData;
+    isAdmin = !!meData.isAdmin;
+  } catch (err) {
+    console.error("Falha ao carregar dados do servidor:", err);
+  }
+  renderAll();
+}
+init();

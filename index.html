@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Almada Outlet | Loja</title>
+  <meta name="description" content="Almada Outlet: streetwear com preço de outlet. Tênis, camisetas, calças, bermudas, moletons e óculos. Monte seu carrinho e finalize no WhatsApp." />
+  <link rel="icon" href="assets/logo.jpeg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Animated background layers -->
+  <div class="fx fx--blobs" aria-hidden="true">
+    <div class="blob blob--1"></div>
+    <div class="blob blob--2"></div>
+    <div class="blob blob--3"></div>
+    <div class="blob blob--4"></div>
+  </div>
+  <canvas class="fx fx--particles" id="particlesCanvas" aria-hidden="true"></canvas>
+  <div class="fx fx--grain" aria-hidden="true"></div>
+
+  <!-- TOP STRIP -->
+  <div class="topStrip">
+    <div class="container topStrip__inner">
+      <div class="topStrip__left">
+        <span class="dot"></span>
+        <span>Entrega e retirada combinadas pelo WhatsApp</span>
+      </div>
+      <div class="topStrip__right">
+        <a href="#contato" class="topLink">Contato</a>
+        <a href="#" id="headerWppLink" class="topLink" target="_blank" rel="noopener">WhatsApp</a>
+        <button class="topLink linkBtn" id="openAdminHintBtn" title="Atalho: Ctrl+Shift+A">Admin</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="container header__row1">
+      <div class="logo">
+        <div class="logo__mark"><img src="assets/logo.jpeg" alt="Almada Outlet" /></div>
+        <div class="logo__text">
+          <div class="logo__name">Almada Outlet</div>
+          <div class="logo__sub">Streetwear com preço de outlet</div>
+        </div>
+      </div>
+
+      <div class="searchBar">
+        <input id="searchInput" type="search" placeholder="O que você procura? (tênis, moletom, óculos...)" />
+        <button class="btn btn--primary" id="searchBtn">Buscar</button>
+      </div>
+
+      <div class="headerActions">
+        <button class="iconPill" id="openCartBtn" aria-label="Abrir carrinho">
+          <span class="icon">🛒</span>
+          <span>Carrinho</span>
+          <span class="count" id="cartCount">0</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="header__row2">
+      <div class="container header__row2Inner">
+        <nav class="navCats" id="navCats"></nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="container hero__grid">
+      <div class="heroBanner">
+        <div class="heroBanner__content">
+          <div class="heroBanner__kicker">Almada Outlet</div>
+          <h1>Estilo urbano com preço de outlet</h1>
+          <p>Tênis, camisetas, calças, bermudas, moletons e óculos. Monte seu carrinho e finalize no WhatsApp.</p>
+          <div class="heroBanner__cta">
+            <a class="btn btn--primary" href="#vitrine">Ver vitrine</a>
+            <button class="btn btn--ghost" id="openCartBtnHero">Abrir carrinho</button>
+          </div>
+          <div class="heroTicker" aria-hidden="true">
+            <div class="heroTicker__track" id="tickerTrack">
+              <span>Tênis</span><span>Camisetas</span><span>Calças</span><span>Bermudas</span><span>Cuecas</span><span>Moletons</span><span>Óculos</span>
+              <span>Tênis</span><span>Camisetas</span><span>Calças</span><span>Bermudas</span><span>Cuecas</span><span>Moletons</span><span>Óculos</span>
+            </div>
+          </div>
+        </div>
+        <div class="heroBanner__art"></div>
+        <div class="shimmer" aria-hidden="true"></div>
+      </div>
+
+      <div class="heroSide">
+        <div class="heroMini heroMini--a">
+          <div class="heroMini__title">Preço de outlet</div>
+          <div class="heroMini__text">Peças selecionadas com o melhor preço da região.</div>
+        </div>
+        <div class="heroMini heroMini--b">
+          <div class="heroMini__title">Catálogo vivo</div>
+          <div class="heroMini__text">Ctrl + Shift + A para editar produtos, fotos e preços.</div>
+        </div>
+        <div class="heroMini heroMini--c">
+          <div class="heroMini__title">Checkout rápido</div>
+          <div class="heroMini__text">Resumo completo e envio automático para o WhatsApp.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <main class="store" id="vitrine">
+    <div class="container store__layout">
+
+      <aside class="sidebar">
+        <div class="panel">
+          <div class="panel__head">
+            <h3>Filtros</h3>
+            <button class="linkBtn" id="clearFiltersBtn">Limpar</button>
+          </div>
+
+          <div class="field">
+            <label class="label">Categoria</label>
+            <select class="select" id="categorySelect">
+              <option value="all">Todas</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="label">Ordenação</label>
+            <select class="select" id="sortSelect">
+              <option value="featured">Destaques</option>
+              <option value="priceAsc">Menor preço</option>
+              <option value="priceDesc">Maior preço</option>
+              <option value="nameAsc">A–Z</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="label">Faixa de preço (R$)</label>
+            <div class="rangeGrid">
+              <input class="input" id="minPrice" type="number" step="0.01" placeholder="mín" />
+              <input class="input" id="maxPrice" type="number" step="0.01" placeholder="máx" />
+            </div>
+            <button class="btn btn--ghost btn--full" id="applyPriceBtn">Aplicar</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="panel__foot">
+            <div class="muted">
+              <div><strong id="statProducts">0</strong> itens no catálogo</div>
+              <div><strong id="statShown">0</strong> exibidos</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel panel--soft">
+          <h3>Finalize no WhatsApp</h3>
+          <p class="muted">Pagamento e entrega combinados pelo WhatsApp.</p>
+          <a class="btn btn--primary btn--full" id="ctaWppLink" href="#" target="_blank" rel="noopener">Abrir WhatsApp</a>
+        </div>
+      </aside>
+
+      <section class="content">
+        <div class="toolbar">
+          <div class="toolbar__left">
+            <h2>Vitrine</h2>
+            <div class="muted">Simulação da loja • fotos e preços de exemplo</div>
+          </div>
+          <div class="toolbar__right">
+            <button class="btn btn--ghost" id="openCartBtn2">Ver carrinho</button>
+          </div>
+        </div>
+
+        <div id="productsGrid" class="productsGrid"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer" id="contato">
+    <div class="container footer__grid">
+      <div>
+        <div class="footer__brand">Almada Outlet</div>
+        <div class="muted">Streetwear com preço de outlet</div>
+      </div>
+      <div>
+        <div class="footer__title">WhatsApp</div>
+        <a class="footer__link" id="footerWpp" href="#" target="_blank" rel="noopener">Abrir conversa</a>
+      </div>
+      <div>
+        <div class="footer__title">Endereço</div>
+        <div class="muted">Se quiser, eu adiciono mapa + rotas.</div>
+      </div>
+    </div>
+    <div class="container footer__bottom">
+      <small class="muted">© <span id="year"></span> Almada Outlet</small>
+    </div>
+  </footer>
+
+  <!-- CART DRAWER -->
+  <aside class="drawer" id="cartDrawer" aria-hidden="true">
+    <div class="drawer__overlay" id="cartOverlay"></div>
+    <div class="drawer__panel">
+      <div class="drawer__head">
+        <div>
+          <div class="drawer__title">Seu carrinho</div>
+          <div class="muted" id="cartMiniInfo"></div>
+        </div>
+        <button class="iconBtn" id="closeCartBtn" aria-label="Fechar">✕</button>
+      </div>
+
+      <div class="drawer__body">
+        <div id="cartItems"></div>
+      </div>
+
+      <div class="drawer__foot">
+        <div class="totals">
+          <div class="totals__row">
+            <span>Subtotal</span>
+            <strong id="cartSubtotal">R$ 0,00</strong>
+          </div>
+          <div class="totals__row muted">
+            <span>Frete</span><span>A combinar</span>
+          </div>
+        </div>
+
+        <textarea id="cartNote" class="textarea" rows="3" placeholder="Observações: entrega/retirada, tamanho, cor, etc."></textarea>
+
+        <button class="btn btn--primary btn--full" id="checkoutWppBtn">Finalizar no WhatsApp</button>
+        <button class="btn btn--ghost btn--full" id="clearCartBtn">Limpar carrinho</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ADMIN MODAL -->
+  <div class="modal" id="adminModal" aria-hidden="true">
+    <div class="modal__overlay" id="adminOverlay"></div>
+    <div class="modal__panel">
+      <div class="modal__head">
+        <div>
+          <div class="modal__title">Admin • Almada Outlet</div>
+          <div class="muted">Gerencie catálogo e configurações</div>
+        </div>
+        <button class="iconBtn" id="closeAdminBtn" aria-label="Fechar">✕</button>
+      </div>
+
+      <div class="tabs">
+        <button class="tab tab--active" data-tab="login" id="tabLogin">Login</button>
+        <button class="tab" data-tab="catalog" id="tabCatalog" disabled>Produtos</button>
+        <button class="tab" data-tab="settings" id="tabSettings" disabled>Config</button>
+      </div>
+
+      <div class="modal__body">
+        <section class="tabPanel tabPanel--active" id="panelLogin">
+          <div class="panel">
+            <div class="grid2">
+              <div class="field">
+                <label class="label">Usuário</label>
+                <input class="input" id="adminUser" placeholder="admin" autocomplete="username" />
+              </div>
+              <div class="field">
+                <label class="label">Senha</label>
+                <input class="input" id="adminPass" type="password" placeholder="admin123" autocomplete="current-password" />
+              </div>
+            </div>
+            <div class="row">
+              <button class="btn btn--primary" id="adminLoginBtn">Entrar</button>
+              <button class="btn btn--ghost" id="adminLogoutBtn" disabled>Sair</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="tabPanel" id="panelCatalog">
+          <div class="panel">
+            <div class="panel__head">
+              <h3>Novo / editar produto</h3>
+            </div>
+
+            <form id="productForm" class="form">
+              <input type="hidden" id="pId" />
+              <div class="grid2">
+                <div class="field">
+                  <label class="label">Nome</label>
+                  <input class="input" id="pName" required />
+                </div>
+                <div class="field">
+                  <label class="label">Categoria</label>
+                  <input class="input" id="pCategory" list="pCategoryList" placeholder="Tênis, Camisetas, Calças..." required autocomplete="off" />
+                  <datalist id="pCategoryList"></datalist>
+                </div>
+
+                <div class="field">
+                  <label class="label">Preço (R$)</label>
+                  <input class="input" id="pPrice" type="number" step="0.01" min="0" required />
+                </div>
+
+                <div class="field">
+                  <label class="label">Destaque</label>
+                  <select class="select" id="pFeatured">
+                    <option value="true">Sim</option>
+                    <option value="false">Não</option>
+                  </select>
+                </div>
+
+                <div class="field field--full">
+                  <label class="label">Descrição</label>
+                  <input class="input" id="pDesc" placeholder="Detalhes do produto (tamanhos, cores...)" />
+                </div>
+
+                <div class="field field--full">
+                  <label class="label">Imagem (URL) ou upload</label>
+                  <div class="row">
+                    <input class="input" id="pImage" placeholder="https://..." />
+                    <input class="input" id="pImageFile" type="file" accept="image/*" />
+                  </div>
+                  <div class="muted">Upload salva base64 no navegador (localStorage).</div>
+                </div>
+
+                <div class="field field--full">
+                  <label class="label">Ajuste da foto</label>
+                  <div class="imgEditor">
+                    <div class="imgEditor__preview" id="pImagePreviewWrap">
+                      <img id="pImagePreview" class="imgEditor__img" src="" alt="Pré-visualização do produto" />
+                      <div class="imgEditor__hint">Arraste para posicionar</div>
+                    </div>
+                    <div class="imgEditor__controls">
+                      <div class="muted">É assim que a foto vai aparecer na vitrine. Arraste a imagem para posicionar e use o zoom para aproximar.</div>
+                      <label class="label">Zoom (<span id="pZoomVal">100%</span>)</label>
+                      <input type="range" id="pZoom" min="100" max="250" step="1" value="100" />
+                      <button class="btn btn--ghost btn--full" type="button" id="pImageResetBtn">Centralizar e resetar zoom</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row">
+                <button class="btn btn--primary" type="submit">Salvar</button>
+                <button class="btn btn--ghost" type="button" id="clearFormBtn">Limpar</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="panel">
+            <div class="panel__head"><h3>Produtos cadastrados</h3></div>
+            <div id="adminProductsList" class="adminList"></div>
+          </div>
+        </section>
+
+        <section class="tabPanel" id="panelSettings">
+          <div class="panel">
+            <h3>WhatsApp da loja</h3>
+            <div class="muted">Use DDI+DDD+Número (somente dígitos). Ex: 5555999999999</div>
+
+            <div class="grid2">
+              <div class="field field--full">
+                <label class="label">Número</label>
+                <input class="input" id="storeWpp" placeholder="5555..." />
+              </div>
+              <div class="field field--full">
+                <label class="label">Mensagem padrão</label>
+                <input class="input" id="storeWppMsg" placeholder="Olá! Quero comprar:" />
+              </div>
+            </div>
+
+            <button class="btn btn--primary" id="saveSettingsBtn">Salvar</button>
+          </div>
+
+          <div class="panel panel--soft">
+            <h3>Credenciais do admin</h3>
+            <div class="muted">Deixe um campo em branco para manter o valor atual. A senha fica salva com hash no servidor.</div>
+            <div class="grid2">
+              <div class="field">
+                <label class="label">Novo usuário</label>
+                <input class="input" id="newAdminUser" autocomplete="username" placeholder="deixe em branco para manter" />
+              </div>
+              <div class="field">
+                <label class="label">Nova senha</label>
+                <input class="input" id="newAdminPass" type="password" autocomplete="new-password" placeholder="deixe em branco para manter" />
+              </div>
+            </div>
+            <button class="btn btn--ghost" id="saveCredsBtn">Atualizar credenciais</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

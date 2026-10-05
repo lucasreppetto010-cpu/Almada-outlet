@@ -1,16 +1,16 @@
 import { Router } from "express";
-import { db } from "../db.js";
+import { db, asyncRoute } from "../db.js";
 import { requireAdmin } from "../auth.js";
 
 const DEFAULTS = {
-  wppNumber: "5555999999999",
+  wppNumber: "5555984580443",
   wppMessage: "Olá! Quero comprar na Almada Outlet:",
 };
 
 const router = Router();
 
-function getSettings(){
-  const rows = db.prepare("SELECT key, value FROM settings").all();
+async function getSettings(){
+  const rows = await db.prepare("SELECT key, value FROM settings").all();
   const map = Object.fromEntries(rows.map(r => [r.key, r.value]));
   return {
     wppNumber: map.wppNumber || DEFAULTS.wppNumber,
@@ -18,11 +18,11 @@ function getSettings(){
   };
 }
 
-router.get("/", (req, res) => {
-  res.json(getSettings());
-});
+router.get("/", asyncRoute(async (req, res) => {
+  res.json(await getSettings());
+}));
 
-router.put("/", requireAdmin, (req, res) => {
+router.put("/", requireAdmin, asyncRoute(async (req, res) => {
   const b = req.body || {};
   const wppNumber = (b.wppNumber || "").trim() || DEFAULTS.wppNumber;
   const wppMessage = (b.wppMessage || "").trim() || DEFAULTS.wppMessage;
@@ -30,10 +30,10 @@ router.put("/", requireAdmin, (req, res) => {
   const upsert = db.prepare(
     "INSERT INTO settings (key, value) VALUES (@key, @value) ON CONFLICT(key) DO UPDATE SET value=@value"
   );
-  upsert.run({ key: "wppNumber", value: wppNumber });
-  upsert.run({ key: "wppMessage", value: wppMessage });
+  await upsert.run({ key: "wppNumber", value: wppNumber });
+  await upsert.run({ key: "wppMessage", value: wppMessage });
 
-  res.json(getSettings());
-});
+  res.json(await getSettings());
+}));
 
 export default router;

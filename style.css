@@ -17,6 +17,7 @@
 
 *{box-sizing:border-box}
 html,body{height:100%}
+html{overflow-x:hidden}
 body{
   margin:0;
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
@@ -80,7 +81,7 @@ a{color:inherit}
 
 /* Top strip */
 .topStrip{background:var(--ink); color:var(--cream); font-size:12px}
-.topStrip__inner{display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 0}
+.topStrip__inner{display:flex; justify-content:space-between; align-items:center; gap:12px; padding-top:10px; padding-bottom:10px}
 .topStrip__left{display:flex; align-items:center; gap:10px; opacity:.95}
 .dot{width:8px; height:8px; background:var(--primary); border-radius:50%}
 .topStrip__right{display:flex; gap:14px; align-items:center}
@@ -95,7 +96,7 @@ a{color:inherit}
   position:sticky; top:0; z-index:50;
   border-bottom:1px solid rgba(230,223,208,.9);
 }
-.header__row1{display:flex; align-items:center; gap:14px; padding:14px 0}
+.header__row1{display:flex; align-items:center; gap:14px; padding-top:14px; padding-bottom:14px}
 .logo{display:flex; gap:10px; align-items:center; min-width:270px}
 .logo__mark{
   width:48px; height:48px; border-radius:14px;
@@ -144,7 +145,7 @@ a{color:inherit}
 }
 
 .header__row2{border-top:1px solid var(--line); background:rgba(255,255,255,.5)}
-.header__row2Inner{display:flex; justify-content:center; align-items:center; gap:14px; padding:10px 0}
+.header__row2Inner{display:flex; justify-content:center; align-items:center; gap:14px; padding-top:10px; padding-bottom:10px}
 
 /* category nav */
 .navCats{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
@@ -351,14 +352,66 @@ a{color:inherit}
 }
 .pDesc{color:var(--muted); font-size:12px; line-height:1.35; flex:1}
 
+/* Sizes (vitrine + admin) */
+.sizeChips{display:flex; flex-wrap:wrap; gap:6px}
+.sizeChip{
+  min-width:38px;
+  padding:7px 10px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:white;
+  font:inherit; font-size:12px; font-weight:800;
+  color:var(--text);
+  cursor:pointer;
+  transition: transform .16s ease, background .16s ease, border-color .16s ease;
+}
+.sizeChip:hover{transform: translateY(-1px)}
+.sizeChip.isActive{
+  border-color: var(--primary2);
+  background: var(--primary2);
+  color:white;
+}
+.sizeChip.isMissing{
+  border-color: #fecaca;
+  color: #991b1b;
+}
+.pSizesLabel{font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px}
+.pSoldOut{
+  font-size:12px; font-weight:800; color:#991b1b;
+  background:#fef2f2; border:1px solid #fecaca;
+  border-radius:10px; padding:8px 10px; text-align:center;
+}
+.btn:disabled{opacity:.5; cursor:not-allowed; transform:none}
+.sizesEditor{display:flex; flex-direction:column; gap:10px; margin-top:10px}
+.sizesEditor[hidden]{display:none}
+.sizesEditor__custom{flex:1; min-width:160px}
+.cartSize{font-size:12px; font-weight:800; color:var(--primary2)}
+
 /* Footer */
 .footer{border-top:1px solid var(--line); padding:20px 0; background:rgba(255,255,255,.65); backdrop-filter: blur(10px)}
-.footer__grid{display:grid; grid-template-columns: 1.3fr 1fr 1fr; gap:14px}
+.footer__grid{display:grid; grid-template-columns: 1.1fr .8fr .8fr 1.3fr; gap:14px}
 .footer__brand{font-weight:700; font-size:18px; color:var(--ink)}
 .footer__title{font-weight:800; margin-bottom:6px}
 .footer__link{color: var(--primary2); text-decoration:none; font-weight:800}
 .footer__link:hover{text-decoration:underline}
 .footer__bottom{padding-top:10px}
+.footer__addr{max-width:220px}
+.footerMap{
+  width:100%;
+  height:110px;
+  margin-top:8px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  display:block;
+}
+
+@media (max-width: 920px){
+  .footer__grid{grid-template-columns: 1fr 1fr}
+  .footer__addr{max-width:none}
+}
+@media (max-width: 560px){
+  .footer__grid{grid-template-columns: 1fr}
+}
 
 /* Drawer */
 .drawer{position:fixed; inset:0; display:none; z-index:80}
@@ -480,10 +533,13 @@ a{color:inherit}
 }
 @media (max-width: 560px){
   .productsGrid{grid-template-columns: 1fr}
+  .header__row1{flex-wrap:wrap; row-gap:10px}
   .logo{min-width:auto}
-  .searchBar{flex-direction:column; align-items:stretch}
+  .headerActions{order:1}
+  .searchBar{order:2; flex-basis:100%; flex-direction:row}
   .grid2{grid-template-columns: 1fr}
   .imgEditor{grid-template-columns: 1fr}
   .adminItem{grid-template-columns: 52px 1fr; row-gap:8px}
   .adminItem .row{grid-column:1/-1; justify-content:flex-start}
+  .toolbar{flex-wrap:wrap; gap:10px}
 }

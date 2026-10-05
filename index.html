@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Almada Outlet | Loja</title>
-  <meta name="description" content="Almada Outlet: streetwear com preço de outlet. Tênis, camisetas, calças, bermudas, moletons e óculos. Monte seu carrinho e finalize no WhatsApp." />
+  <meta name="description" content="Almada Outlet: um novo conceito de moda. Tênis, camisetas, calças, bermudas, moletons e óculos. Monte seu carrinho e finalize no WhatsApp." />
   <link rel="icon" href="assets/logo.jpeg" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -45,7 +45,7 @@
         <div class="logo__mark"><img src="assets/logo.jpeg" alt="Almada Outlet" /></div>
         <div class="logo__text">
           <div class="logo__name">Almada Outlet</div>
-          <div class="logo__sub">Streetwear com preço de outlet</div>
+          <div class="logo__sub">Um novo conceito de moda</div>
         </div>
       </div>
 
@@ -76,7 +76,7 @@
       <div class="heroBanner">
         <div class="heroBanner__content">
           <div class="heroBanner__kicker">Almada Outlet</div>
-          <h1>Estilo urbano com preço de outlet</h1>
+          <h1>Um novo conceito de moda</h1>
           <p>Tênis, camisetas, calças, bermudas, moletons e óculos. Monte seu carrinho e finalize no WhatsApp.</p>
           <div class="heroBanner__cta">
             <a class="btn btn--primary" href="#vitrine">Ver vitrine</a>
@@ -99,12 +99,12 @@
           <div class="heroMini__text">Peças selecionadas com o melhor preço da região.</div>
         </div>
         <div class="heroMini heroMini--b">
-          <div class="heroMini__title">Catálogo vivo</div>
-          <div class="heroMini__text">Ctrl + Shift + A para editar produtos, fotos e preços.</div>
+          <div class="heroMini__title">Novidades toda semana</div>
+          <div class="heroMini__text">Catálogo sempre atualizado com lançamentos e peças exclusivas.</div>
         </div>
         <div class="heroMini heroMini--c">
-          <div class="heroMini__title">Checkout rápido</div>
-          <div class="heroMini__text">Resumo completo e envio automático para o WhatsApp.</div>
+          <div class="heroMini__title">Compra sem complicação</div>
+          <div class="heroMini__text">Monte seu carrinho e finalize o pedido direto no WhatsApp, com atendimento rápido.</div>
         </div>
       </div>
     </div>
@@ -167,7 +167,7 @@
         <div class="toolbar">
           <div class="toolbar__left">
             <h2>Vitrine</h2>
-            <div class="muted">Simulação da loja • fotos e preços de exemplo</div>
+            <div class="muted">Confira nossos produtos e monte seu pedido</div>
           </div>
           <div class="toolbar__right">
             <button class="btn btn--ghost" id="openCartBtn2">Ver carrinho</button>
@@ -183,15 +183,26 @@
     <div class="container footer__grid">
       <div>
         <div class="footer__brand">Almada Outlet</div>
-        <div class="muted">Streetwear com preço de outlet</div>
+        <div class="muted">Um novo conceito de moda</div>
       </div>
       <div>
         <div class="footer__title">WhatsApp</div>
         <a class="footer__link" id="footerWpp" href="#" target="_blank" rel="noopener">Abrir conversa</a>
       </div>
       <div>
+        <div class="footer__title">Redes sociais</div>
+        <a class="footer__link" href="https://www.instagram.com/almadaoutlet_2/" target="_blank" rel="noopener noreferrer">Instagram</a>
+      </div>
+      <div class="footer__addr">
         <div class="footer__title">Endereço</div>
-        <div class="muted">Se quiser, eu adiciono mapa + rotas.</div>
+        <div class="muted">Rua Severiano da Fonseca, 25 — esquina com Daltro Filho<br />Santana do Livramento, RS</div>
+        <iframe
+          class="footerMap"
+          src="https://www.google.com/maps?q=Rua%20Severiano%20da%20Fonseca%2C%2025%2C%20Santana%20do%20Livramento%2C%20RS&output=embed"
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+          title="Localização Almada Outlet no mapa"
+        ></iframe>
       </div>
     </div>
     <div class="container footer__bottom">
@@ -262,7 +273,7 @@
               </div>
               <div class="field">
                 <label class="label">Senha</label>
-                <input class="input" id="adminPass" type="password" placeholder="admin123" autocomplete="current-password" />
+                <input class="input" id="adminPass" type="password" autocomplete="current-password" />
               </div>
             </div>
             <div class="row">
@@ -302,6 +313,23 @@
                     <option value="true">Sim</option>
                     <option value="false">Não</option>
                   </select>
+                </div>
+
+                <div class="field field--full">
+                  <label class="label">Tamanhos disponíveis</label>
+                  <select class="select" id="pSizeType">
+                    <option value="none">Tamanho único / não se aplica</option>
+                    <option value="clothing">Roupas (P, M, G, GG)</option>
+                    <option value="shoes">Calçados (37 a 44)</option>
+                  </select>
+                  <div id="pSizesBox" class="sizesEditor" hidden>
+                    <div class="muted">Marque os tamanhos que têm na loja. Quando um vender, é só desmarcar e salvar.</div>
+                    <div class="sizeChips" id="pSizes"></div>
+                    <div class="row">
+                      <input class="input sizesEditor__custom" id="pSizeCustom" placeholder="Outro tamanho (ex: XG, 36, 45)" />
+                      <button class="btn btn--ghost" type="button" id="pSizeAddBtn">Adicionar</button>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="field field--full">

@@ -3,11 +3,18 @@ const LS = {
 };
 
 const DEFAULT_SETTINGS = {
-  wppNumber: "5555999999999",
+  wppNumber: "5555984580443",
   wppMessage: "Olá! Quero comprar na Almada Outlet:",
 };
 
-const moneyBR = (v) => (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+// Tamanhos sugeridos no admin para cada tipo de produto. O dono marca quais
+// têm em estoque; outros tamanhos (XG, 36, 45...) podem ser adicionados à mão.
+const SIZE_PRESETS = {
+  clothing: ["P", "M", "G", "GG"],
+  shoes: ["37", "38", "39", "40", "41", "42", "43", "44"],
+};
+
+const moneyBR =(v) => (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 function loadJSON(key, fallback){ try{ const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch { return fallback; } }
 function saveJSON(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
 function escapeHTML(s=""){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
@@ -130,6 +137,11 @@ const pCategory = document.getElementById("pCategory");
 const pPrice = document.getElementById("pPrice");
 const pFeatured = document.getElementById("pFeatured");
 const pDesc = document.getElementById("pDesc");
+const pSizeType = document.getElementById("pSizeType");
+const pSizesBox = document.getElementById("pSizesBox");
+const pSizes = document.getElementById("pSizes");
+const pSizeCustom = document.getElementById("pSizeCustom");
+const pSizeAddBtn = document.getElementById("pSizeAddBtn");
 const pImage = document.getElementById("pImage");
 const pImageFile = document.getElementById("pImageFile");
 const clearFormBtn = document.getElementById("clearFormBtn");
@@ -149,10 +161,20 @@ const newAdminPass = document.getElementById("newAdminPass");
 const saveCredsBtn = document.getElementById("saveCredsBtn");
 
 // ---------- Cart helpers ----------
+// Cada item do carrinho é { productId, size, qty }: o mesmo produto em
+// tamanhos diferentes vira linhas separadas.
 function cartTotalQty(){ return cart.reduce((a,i)=>a+i.qty,0); }
-function getQtyInCart(productId){
-  return cart.find(i=>i.productId===productId)?.qty ?? 0;
+function findCartItem(productId, size){
+  return cart.find(i=>i.productId===productId && (i.size||"")===(size||""));
 }
+
+// ---------- Sizes ----------
+function hasSizes(p){ return !!p && p.sizeType && p.sizeType !== "none"; }
+function availableSizes(p){ return hasSizes(p) ? (p.sizes || []) : []; }
+function isSoldOut(p){ return hasSizes(p) && availableSizes(p).length === 0; }
+
+// Tamanho escolhido pelo cliente em cada card (sobrevive aos re-renders).
+const chosenSize = {};
 
 // ---------- Categories ----------
 function categories(){
@@ -218,6 +240,23 @@ function ensureObserver(){
   }, { threshold: 0.06 });
 }
 
+function sizesBlockHTML(p){
+  if (!hasSizes(p)) return "";
+  if (isSoldOut(p)) return `<div class="pSoldOut">Esgotado</div>`;
+  const sizes = availableSizes(p);
+  if (chosenSize[p.id] && !sizes.includes(chosenSize[p.id])) delete chosenSize[p.id];
+  // Só um tamanho disponível: já vem selecionado.
+  if (sizes.length === 1) chosenSize[p.id] = sizes[0];
+  const current = chosenSize[p.id];
+  return `
+    <div>
+      <div class="pSizesLabel">${current ? `Tamanho: ${escapeHTML(current)}` : (p.sizeType === "shoes" ? "Numeração" : "Tamanho")}</div>
+      <div class="sizeChips">
+        ${sizes.map(s=>`<button type="button" class="sizeChip${s===current ? " isActive" : ""}" data-size="${escapeHTML(s)}">${escapeHTML(s)}</button>`).join("")}
+      </div>
+    </div>`;
+}
+
 function renderProducts(){
   ensureObserver();
   const list = filteredProducts();
@@ -256,8 +295,10 @@ function renderProducts(){
 
         <div class="pDesc">${escapeHTML(p.desc||"")}</div>
 
+        ${sizesBlockHTML(p)}
+
         <div class="row">
-          <button class="btn btn--primary btn--full" data-add="${p.id}">Adicionar</button>
+          <button class="btn btn--primary btn--full" data-add="${p.id}" ${isSoldOut(p) ? "disabled" : ""}>${isSoldOut(p) ? "Indisponível" : "Adicionar"}</button>
           ${isAdmin ? `<button class="btn btn--ghost" data-edit="${p.id}">Editar</button>` : ``}
         </div>
       </div>
@@ -266,7 +307,28 @@ function renderProducts(){
     const img = el.querySelector("img");
     img.onerror = () => img.src = svgFallback;
 
-    el.querySelector("[data-add]").addEventListener("click", ()=>addToCart(p.id));
+    el.querySelectorAll("[data-size]").forEach(b=>{
+      b.addEventListener("click", ()=>{
+        chosenSize[p.id] = b.dataset.size;
+        el.querySelectorAll("[data-size]").forEach(x=>x.classList.toggle("isActive", x===b));
+        const label = el.querySelector(".pSizesLabel");
+        label.textContent = `Tamanho: ${b.dataset.size}`;
+        label.style.color = "";
+      });
+    });
+
+    el.querySelector("[data-add]").addEventListener("click", ()=>{
+      if (hasSizes(p)){
+        const size = chosenSize[p.id];
+        if (!size || !availableSizes(p).includes(size)){
+          const label = el.querySelector(".pSizesLabel");
+          label.textContent = "Escolha um tamanho";
+          label.style.color = "#991b1b";
+          return;
+        }
+        addToCart(p.id, size);
+      } else addToCart(p.id);
+    });
     const editBtn = el.querySelector("[data-edit]");
     if (editBtn) editBtn.addEventListener("click", ()=>{ openAdmin(); loadToForm(p.id); });
 
@@ -299,57 +361,61 @@ function renderCart(){
     const p = products.find(x=>x.id===it.productId);
     if (!p) return;
 
+    const sizeGone = it.size && hasSizes(p) && !availableSizes(p).includes(it.size);
+
     const row = document.createElement("div");
     row.className = "cartRow";
     row.innerHTML = `
       <img src="${p.image || placeholderImage(p.category)}" alt="${escapeHTML(p.name)}" />
       <div>
         <div class="cartName">${escapeHTML(p.name)}</div>
+        ${it.size ? `<div class="cartSize">Tamanho: ${escapeHTML(it.size)}${sizeGone ? ` <span style="color:#991b1b">(esgotou)</span>` : ""}</div>` : ""}
         <div class="muted">Unit: <strong>${moneyBR(p.price||0)}</strong></div>
-        <button class="btn btn--ghost" style="padding:8px 10px" data-remove="${p.id}">Remover</button>
+        <button class="btn btn--ghost" style="padding:8px 10px" data-remove>Remover</button>
       </div>
       <div class="qty">
-        <button data-dec="${p.id}">−</button>
+        <button data-dec>−</button>
         <strong>${it.qty}</strong>
-        <button data-inc="${p.id}">+</button>
+        <button data-inc>+</button>
       </div>
     `;
 
     row.querySelector("img").onerror = ()=> row.querySelector("img").src = svgFallback;
-    row.querySelector("[data-inc]").addEventListener("click", ()=>incQty(p.id));
-    row.querySelector("[data-dec]").addEventListener("click", ()=>decQty(p.id));
-    row.querySelector("[data-remove]").addEventListener("click", ()=>removeFromCart(p.id));
+    row.querySelector("[data-inc]").addEventListener("click", ()=>incQty(it.productId, it.size));
+    row.querySelector("[data-dec]").addEventListener("click", ()=>decQty(it.productId, it.size));
+    row.querySelector("[data-remove]").addEventListener("click", ()=>removeFromCart(it.productId, it.size));
     cartItems.appendChild(row);
   });
 }
 
-function addToCart(productId){
-  const found = cart.find(i=>i.productId===productId);
+function addToCart(productId, size){
+  const found = findCartItem(productId, size);
   if (found) found.qty += 1;
-  else cart.push({productId, qty:1});
+  else cart.push(size ? {productId, size, qty:1} : {productId, qty:1});
   saveJSON(LS.cart, cart);
   renderProducts();
   renderCart();
   openCart();
 }
-function incQty(productId){
-  const it = cart.find(i=>i.productId===productId);
+function incQty(productId, size){
+  const it = findCartItem(productId, size);
   if (!it) return;
   it.qty += 1;
   saveJSON(LS.cart, cart);
   renderProducts();
   renderCart();
 }
-function decQty(productId){
-  const it = cart.find(i=>i.productId===productId);
+function decQty(productId, size){
+  const it = findCartItem(productId, size);
   if (!it) return;
   it.qty = Math.max(1, it.qty-1);
   saveJSON(LS.cart, cart);
   renderProducts();
   renderCart();
 }
-function removeFromCart(productId){
-  cart = cart.filter(i=>i.productId!==productId);
+function removeFromCart(productId, size){
+  const it = findCartItem(productId, size);
+  cart = cart.filter(i=>i!==it);
   saveJSON(LS.cart, cart);
   renderProducts();
   renderCart();
@@ -375,7 +441,8 @@ function buildCheckoutMessage(){
     const p = products.find(x=>x.id===it.productId);
     if (!p) return;
     const lineTotal = (p.price||0) * it.qty;
-    lines.push(`• ${it.qty}x ${p.name} — Unit ${moneyBR(p.price||0)} (linha: ${moneyBR(lineTotal)})`);
+    const size = it.size ? ` (Tam. ${it.size})` : "";
+    lines.push(`• ${it.qty}x ${p.name}${size} — Unit ${moneyBR(p.price||0)} (linha: ${moneyBR(lineTotal)})`);
   });
 
   lines.push("");
@@ -443,6 +510,11 @@ clearFiltersBtn.addEventListener("click", ()=>{
 // Checkout / clear
 checkoutWppBtn.addEventListener("click", ()=>{
   if (!cart.length) return alert("Seu carrinho está vazio.");
+  const gone = cart.some(it=>{
+    const p = products.find(x=>x.id===it.productId);
+    return p && it.size && hasSizes(p) && !availableSizes(p).includes(it.size);
+  });
+  if (gone) return alert("Algum tamanho do seu carrinho esgotou. Remova o item marcado como (esgotou) para continuar.");
   window.open(wppBaseLink(buildCheckoutMessage()), "_blank", "noopener");
 });
 clearCartBtn.addEventListener("click", ()=>{
@@ -545,6 +617,71 @@ pImagePreviewWrap.addEventListener("pointermove", (e)=>{
   pImagePreviewWrap.addEventListener(ev, ()=>{ dragState = null; });
 });
 
+// ---------- Product sizes editor ----------
+// sizeEdit.options = todos os botões exibidos (sugestões + extras do dono);
+// sizeEdit.selected = os que estão em estoque e vão para a vitrine.
+let sizeEdit = { options: [], selected: new Set() };
+let sizeTypeTouched = false;
+
+function guessSizeType(category){
+  const c = (category||"").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  if (/tenis|calcado|sapat|chinelo|bota/.test(c)) return "shoes";
+  if (/oculos|bone|acessorio|relogio|carteira|cueca/.test(c)) return "none";
+  return "clothing";
+}
+
+function setSizeEditor(type, sizes){
+  pSizeType.value = type;
+  const preset = SIZE_PRESETS[type] || [];
+  const extras = (sizes||[]).filter(s=>!preset.includes(s));
+  sizeEdit = { options: [...preset, ...extras], selected: new Set(sizes||[]) };
+  renderSizeEditor();
+}
+
+function renderSizeEditor(){
+  pSizesBox.hidden = pSizeType.value === "none";
+  pSizes.innerHTML = sizeEdit.options.map(s=>
+    `<button type="button" class="sizeChip${sizeEdit.selected.has(s) ? " isActive" : ""}" data-size="${escapeHTML(s)}">${escapeHTML(s)}</button>`
+  ).join("");
+  pSizes.querySelectorAll("[data-size]").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const s = b.dataset.size;
+      if (sizeEdit.selected.has(s)) sizeEdit.selected.delete(s);
+      else sizeEdit.selected.add(s);
+      renderSizeEditor();
+    });
+  });
+}
+
+function selectedSizesInOrder(){
+  return sizeEdit.options.filter(s=>sizeEdit.selected.has(s));
+}
+
+pSizeType.addEventListener("change", ()=>{
+  sizeTypeTouched = true;
+  setSizeEditor(pSizeType.value, []);
+});
+
+// Em produto novo, sugere o tipo de tamanho pela categoria (até o dono escolher na mão).
+pCategory.addEventListener("input", ()=>{
+  if (pId.value || sizeTypeTouched) return;
+  const type = guessSizeType(pCategory.value);
+  if (type !== pSizeType.value) setSizeEditor(type, []);
+});
+
+function addCustomSize(){
+  const s = (pSizeCustom.value||"").trim().toUpperCase();
+  if (!s) return;
+  if (!sizeEdit.options.includes(s)) sizeEdit.options.push(s);
+  sizeEdit.selected.add(s);
+  pSizeCustom.value = "";
+  renderSizeEditor();
+}
+pSizeAddBtn.addEventListener("click", addCustomSize);
+pSizeCustom.addEventListener("keydown", (e)=>{
+  if (e.key === "Enter"){ e.preventDefault(); addCustomSize(); }
+});
+
 function clearForm(){
   pId.value = "";
   pName.value = "";
@@ -554,6 +691,9 @@ function clearForm(){
   pDesc.value = "";
   pImage.value = "";
   pImageFile.value = "";
+  pSizeCustom.value = "";
+  sizeTypeTouched = false;
+  setSizeEditor("none", []);
   imgEdit = { ...DEFAULT_IMG_EDIT };
   refreshImagePreviewSrc();
 }
@@ -587,7 +727,12 @@ productForm.addEventListener("submit", async (e)=>{
     image: img || null,
     imageZoom: imgEdit.zoom,
     imagePos: { x: imgEdit.x, y: imgEdit.y },
+    sizeType: pSizeType.value,
+    sizes: pSizeType.value === "none" ? [] : selectedSizesInOrder(),
   };
+
+  if (payload.sizeType !== "none" && !payload.sizes.length
+      && !confirm("Nenhum tamanho marcado: o produto vai aparecer como ESGOTADO na vitrine. Salvar mesmo assim?")) return;
 
   try {
     if (id) await apiSend(`/api/products/${id}`, "PUT", payload);
@@ -612,6 +757,7 @@ function renderAdminList(){
       <div>
         <div style="font-weight:800">${escapeHTML(p.name)}</div>
         <div class="muted">${escapeHTML(p.category||"")} • ${moneyBR(p.price||0)} ${p.featured ? "• Destaque" : ""}</div>
+        ${hasSizes(p) ? `<div class="muted">${isSoldOut(p) ? `<strong style="color:#991b1b">Esgotado</strong>` : `Tamanhos: <strong>${escapeHTML(availableSizes(p).join(", "))}</strong>`}</div>` : ""}
       </div>
       <div class="row" style="justify-content:flex-end">
         <button class="btn btn--ghost" data-edit="${p.id}">Editar</button>
@@ -636,6 +782,9 @@ function loadToForm(id){
   pDesc.value = p.desc || "";
   pImage.value = (p.image && !String(p.image).startsWith("data:")) ? p.image : "";
   pImageFile.value = "";
+  pSizeCustom.value = "";
+  sizeTypeTouched = true;
+  setSizeEditor(p.sizeType || "none", p.sizes || []);
   imgEdit = { zoom: p.imageZoom || DEFAULT_IMG_EDIT.zoom, x: p.imagePos?.x ?? DEFAULT_IMG_EDIT.x, y: p.imagePos?.y ?? DEFAULT_IMG_EDIT.y };
   pImagePreview.src = p.image || placeholderImage(p.category);
   applyImgEditPreview();

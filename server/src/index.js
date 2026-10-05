@@ -1,6 +1,5 @@
 import "dotenv/config";
 import express from "express";
-import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import authRoutes from "./routes/auth.js";
 import productRoutes from "./routes/products.js";
 import settingsRoutes from "./routes/settings.js";
+import { initDb } from "./db.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const siteRoot = path.join(__dirname, "..", ".."); // pasta almada-outlet/
@@ -20,7 +20,21 @@ const PORT = process.env.PORT || 3000;
 // HTTP e o cookie de sessão (secure) não é setado corretamente.
 app.set("trust proxy", 1);
 
-app.use(cors({ origin: true, credentials: true }));
+// Em produção, todo acesso vai por HTTPS: quem entrar por http:// é
+// redirecionado, e o HSTS faz o navegador nem tentar http nas próximas vezes.
+// Assim a senha do admin e o cookie de sessão nunca trafegam abertos.
+if (process.env.NODE_ENV === "production"){
+  app.use((req, res, next) => {
+    if (req.secure) {
+      res.setHeader("Strict-Transport-Security", "max-age=15552000; includeSubDomains");
+      return next();
+    }
+    res.redirect(301, `https://${req.headers.host}${req.originalUrl}`);
+  });
+}
+
+// Sem CORS: o site e a API ficam no mesmo endereço, então nenhum outro site
+// precisa (nem deve) conseguir chamar a API pelo navegador.
 app.use(express.json({ limit: "12mb" })); // uploads de imagem chegam como base64
 app.use(cookieParser());
 
@@ -37,6 +51,13 @@ app.use((req, res, next) => {
 
 app.use(express.static(siteRoot, { dotfiles: "deny" }));
 
+// Erro inesperado (ex: banco fora do ar): responde em JSON sem expor detalhes.
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: "Erro no servidor. Tente novamente." });
+});
+
+await initDb();
 app.listen(PORT, () => {
   console.log(`Almada Outlet rodando em http://localhost:${PORT}`);
 });

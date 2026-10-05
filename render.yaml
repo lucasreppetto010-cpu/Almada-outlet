@@ -1,0 +1,22 @@
+# Configuração do Render (plano grátis). Os dados ficam no Turso, então
+# nada se perde quando o Render reinicia ou faz deploy.
+services:
+  - type: web
+    name: almada-outlet
+    runtime: node
+    plan: free
+    buildCommand: cd server && npm ci
+    startCommand: cd server && npm start
+    healthCheckPath: /api/settings
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      # Preenchidos no painel do Render na primeira vez (sync: false = valor secreto).
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

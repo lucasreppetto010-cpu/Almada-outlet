@@ -65,3 +65,19 @@ await initDb();
 app.listen(PORT, () => {
   console.log(`Almada Outlet rodando em http://localhost:${PORT}`);
 });
+
+// O plano grátis do Render hiberna após 15 min sem visitas. O Render informa
+// o endereço público em RENDER_EXTERNAL_URL; acessá-lo a cada 10 min passa
+// pelo proxy do Render e conta como visita, mantendo o site acordado.
+const KEEP_ALIVE_URL = process.env.RENDER_EXTERNAL_URL;
+if (KEEP_ALIVE_URL){
+  setInterval(async () => {
+    try {
+      const res = await fetch(`${KEEP_ALIVE_URL}/api/settings`, { signal: AbortSignal.timeout(30_000) });
+      if (!res.ok) console.warn(`[keep-alive] resposta ${res.status}`);
+    } catch (err) {
+      console.warn(`[keep-alive] falhou: ${err.message}`);
+    }
+  }, 10 * 60 * 1000);
+  console.log(`[keep-alive] Acessando ${KEEP_ALIVE_URL} a cada 10 minutos.`);
+}

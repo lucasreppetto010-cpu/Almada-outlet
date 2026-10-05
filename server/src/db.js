@@ -173,6 +173,9 @@ async function seedProducts(){
 }
 
 export async function initDb(){
+  console.log(process.env.TURSO_DATABASE_URL
+    ? "[db] Usando Turso (nuvem)."
+    : "[db] Usando arquivo local server/data/almada.sqlite.");
   await db.exec(SCHEMA);
   await migrate();
   await seedAdmin();

@@ -42,10 +42,14 @@ app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/settings", settingsRoutes);
 
-// Nunca sirva a própria pasta do backend (banco de dados, .env, node_modules)
-// como arquivo estático — só o site (index.html, style.css, script.js, assets/...).
+// Só os arquivos do site são públicos. Todo o resto da pasta (server/, banco,
+// .env, render.yaml, README...) responde 404.
+const PUBLIC_PATH = /^\/(|index\.html|style\.css|script\.js|assets\/[^/]+)$/;
 app.use((req, res, next) => {
-  if (/^\/server(\/|$)/i.test(req.path)) return res.status(404).end();
+  // Confere o caminho já decodificado: "%2f" vira "/" e não escapa da regra.
+  let p;
+  try { p = decodeURIComponent(req.path); } catch { return res.status(400).end(); }
+  if (p.includes("..") || p.includes("\\") || !PUBLIC_PATH.test(p)) return res.status(404).end();
   next();
 });
 

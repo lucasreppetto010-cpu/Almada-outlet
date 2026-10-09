@@ -1,0 +1,5 @@
+# Tokens e segredos: nunca subir para o GitHub
+.env
+*.env
+eyJ*.txt
+*token*.txt

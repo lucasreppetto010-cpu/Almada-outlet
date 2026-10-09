@@ -708,15 +708,58 @@ async function fileToDataURL(file){
   });
 }
 
+// Reduz a foto antes de enviar: foto de celular tem vários MB e deixava o
+// salvamento (e o carregamento da loja) muito lento.
+async function compressImage(file, maxSide = 1200, quality = 0.82){
+  const src = await fileToDataURL(file);
+  try {
+    const img = new Image();
+    await new Promise((resolve, reject)=>{ img.onload = resolve; img.onerror = reject; img.src = src; });
+    const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff"; // PNG transparente não fica preto no JPEG
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const out = canvas.toDataURL("image/jpeg", quality);
+    return out.length < src.length ? out : src;
+  } catch {
+    return src; // formato que o navegador não desenha: envia como está
+  }
+}
+
 productForm.addEventListener("submit", async (e)=>{
   e.preventDefault();
   if (!isAdmin) return alert("Faça login.");
+  // Evita salvar o mesmo produto duas vezes com cliques repetidos.
+  const submitBtn = productForm.querySelector('[type="submit"]');
+  if (submitBtn.disabled) return;
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Salvando...";
+  try {
+    await saveProduct();
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Salvar";
+  }
+});
+
+async function saveProduct(){
   let img = (pImage.value||"").trim();
-  if (pImageFile.files && pImageFile.files[0]) img = await fileToDataURL(pImageFile.files[0]);
+  if (pImageFile.files && pImageFile.files[0]) img = await compressImage(pImageFile.files[0]);
 
   const category = pCategory.value.trim();
   const name = pName.value.trim();
   const id = pId.value;
+
+  // Foto enviada por arquivo (data:) não aparece no campo de URL ao editar;
+  // sem isso, salvar a edição (ex.: marcar como esgotado) apagaria a foto.
+  if (!img && id){
+    const existing = products.find(x=>x.id===id);
+    if (existing?.image && String(existing.image).startsWith("data:")) img = existing.image;
+  }
 
   const payload = {
     name,
@@ -744,7 +787,7 @@ productForm.addEventListener("submit", async (e)=>{
   } catch (err) {
     alert(err.message || "Não foi possível salvar o produto.");
   }
-});
+}
 
 function renderAdminList(){
   adminProductsList.innerHTML = "";
